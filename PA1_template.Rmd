@@ -8,18 +8,81 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r, echo = TRUE}
+activity <- read.csv("activity.csv")
 
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+activity_df <- as.data.frame(activity)
+df_activity <- subset(activity_df, !is.na(activity_df$steps))
+
+dailysteps <- tapply(df_activity$steps, df_activity$date, sum, na.rm=TRUE, simplify=T)
+dailysteps <- dailysteps[!is.na(dailysteps)]
+
+hist(x=dailysteps,
+     col="light green",
+     breaks=20,
+     xlab="Total Number of Steps per Day",
+     ylab="Frequency",
+     main="Total Number of Steps Histogram")
+
+```
 
 ## What is mean total number of steps taken per day?
 
-
+```{r, echo = TRUE}
+mean(dailysteps)
+median(dailysteps)
+```
 
 ## What is the average daily activity pattern?
 
+```{r, echo = TRUE}
+library(ggplot2)
 
+adp <- aggregate(x=list(steps=df_activity$steps), by=list(interval=df_activity$interval), FUN=mean)
 
+ggplot(data=adp, aes(x=interval, y=steps)) + geom_line() + 
+  xlab("Intervals set at 5 minutes") + ylab("Average number of steps taken")
+
+adp[(which.max(adp$steps)),]
+```
 ## Imputing missing values
 
+```{r, echo = TRUE}
+sum(is.na(activity_df$steps))
 
+df_wmv <- activity_df
+ndx <- is.na(df_wmv$steps)
+int_avg <- tapply(df_activity$steps, df_activity$interval, mean, na.rm=TRUE, simplify=T)
+df_wmv$steps[ndx] <- int_avg[as.character(df_wmv$interval[ndx])]
+
+daily_total <- tapply(df_wmv$steps, df_wmv$date, sum, na.rm=TRUE, simplify=T)
+
+hist(x=daily_total,
+     col="Light Blue",
+     breaks=20,
+     xlab="Daily steps with imputed missing values",
+     ylab="Frequency",
+     main="Total Daily Steps with Imputed Missing Values Histogram")
+
+mean(daily_total)
+
+median((daily_total))
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r, echo = TRUE}
+library(ggplot2)
+is_weekday <- function(d) {
+    wd <- weekdays(d)
+    ifelse (wd == "Saturday" | wd == "Sunday", "weekend", "weekday")
+}
+
+wx <- sapply(df_wmv$date, is_weekday)
+df_wmv$wk <- as.factor(wx)
+head(df_wmv)
+
+avg_df <- aggregate(steps ~ wk+interval, data=df_wmv, FUN=mean)
+ggplot(avg_df, aes(interval, steps))+geom_line()+ facet_grid(wk ~ .) + xlab("Intervals at 5 minutes") + ylab("Number of Steps")
+```
+
